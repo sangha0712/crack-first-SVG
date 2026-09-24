@@ -2,6 +2,7 @@ const WIDTH = 390;
 const MAX_MESSAGES = 5;
 const MAX_AVATAR_BYTES = 1_500_000;
 const AVATAR_ROOT = "https://raw.githubusercontent.com/sangha0712/crack-first-SVG/main/";
+const AVATAR_REV = "1";
 const DEFAULT_AVATAR_BY_NAME = { "하린": "hr" };
 
 export default {
@@ -69,8 +70,15 @@ async function loadAvatar(key) {
   if (!key) return "";
 
   try {
-    const response = await fetch(`${AVATAR_ROOT}${encodeURIComponent(key)}.webp`, {
-      cf: { cacheEverything: true, cacheTtl: 86400 },
+    const response = await fetch(`${AVATAR_ROOT}${encodeURIComponent(key)}.webp?v=${AVATAR_REV}`, {
+      cf: {
+        cacheEverything: true,
+        cacheTtlByStatus: {
+          "200-299": 86400,
+          "404": 60,
+          "500-599": 0,
+        },
+      },
     });
     if (!response.ok) return "";
 
