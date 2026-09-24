@@ -339,23 +339,8 @@ function renderInstagram({ name, status, date, messages, avatarData }) {
     y += bubbleHeight + (groupEnd ? 15 : 5);
   }
 
-  const height = Math.max(560, y + 92);
-  const inputY = height - 62;
-  parts.push(
-    `<rect x="0" y="${inputY}" width="390" height="62" fill="#ffffff"/>`,
-    `<line x1="0" y1="${inputY}" x2="390" y2="${inputY}" stroke="#eeeeee"/>`,
-    `<rect x="12" y="${inputY + 10}" width="366" height="42" rx="21" fill="#ffffff" stroke="#d9d9d9" stroke-width="1"/>`,
-    `<circle cx="34" cy="${inputY + 31}" r="15" fill="#3797F0"/>`,
-    `<rect x="27" y="${inputY + 25}" width="14" height="11" rx="3" fill="none" stroke="#ffffff" stroke-width="1.5"/>`,
-    `<circle cx="34" cy="${inputY + 30.5}" r="3.2" fill="none" stroke="#ffffff" stroke-width="1.3"/>`,
-    `<path d="M29 ${inputY + 25}l2-3h6l2 3" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>`,
-    `<text x="57" y="${inputY + 35}" fill="#9a9a9a" font-size="12.5" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">메시지 보내기...</text>`,
-    `<path d="M291 ${inputY + 24}v8a5 5 0 0 0 10 0v-8m-5 13v4m-5 0h10" fill="none" stroke="#222222" stroke-width="1.4" stroke-linecap="round"/>`,
-    `<rect x="316" y="${inputY + 23}" width="17" height="16" rx="2.5" fill="none" stroke="#222222" stroke-width="1.4"/>`,
-    `<circle cx="328" cy="${inputY + 28}" r="2" fill="#222222"/>`,
-    `<path d="M318 ${inputY + 36}l5-5l4 4l3-3l3 4" fill="none" stroke="#222222" stroke-width="1.3" stroke-linejoin="round"/>`,
-    `<path d="M358 ${inputY + 39}C355 ${inputY + 35} 349 ${inputY + 32} 351 ${inputY + 27}C353 ${inputY + 23} 357 ${inputY + 24} 358 ${inputY + 28}C359 ${inputY + 24} 363 ${inputY + 23} 365 ${inputY + 27}C367 ${inputY + 32} 361 ${inputY + 36} 358 ${inputY + 39}Z" fill="none" stroke="#222222" stroke-width="1.3" stroke-linejoin="round"/>`,
-  );
+  const height = Math.max(184, y + 4);
+  parts.push(`<line x1="0" y1="${height - 0.5}" x2="390" y2="${height - 0.5}" stroke="#eeeeee"/>`);
 
   return baseSvg(height, "#ffffff", parts.join("\n  "), gradient);
 }
