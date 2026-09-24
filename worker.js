@@ -2,6 +2,7 @@ const WIDTH = 390;
 const MAX_MESSAGES = 5;
 const MAX_AVATAR_BYTES = 1_500_000;
 const AVATAR_ROOT = "https://raw.githubusercontent.com/sangha0712/crack-first-SVG/main/";
+const DEFAULT_AVATAR_BY_NAME = { "하린": "hr" };
 
 export default {
   async fetch(request) {
@@ -11,11 +12,13 @@ export default {
 
     const url = new URL(request.url);
     const app = value(url, "app", "kakao").toLowerCase();
-    const name = value(url, "name", "서윤").slice(0, 20);
+    const name = value(url, "name", "하린").slice(0, 20);
     const status = value(url, "status", app === "instagram" ? "활동 중" : "").slice(0, 30);
     const date = value(url, "date", "오늘").slice(0, 20);
-    const avatarFile = validAvatarFile(url.searchParams.get("avatar"));
-    const avatarData = await loadAvatar(avatarFile);
+    const avatarKey = validAvatarKey(url.searchParams.get("a") || url.searchParams.get("avatar"))
+      || DEFAULT_AVATAR_BY_NAME[name]
+      || "";
+    const avatarData = await loadAvatar(avatarKey);
     const messages = [];
 
     for (let i = 1; i <= MAX_MESSAGES; i += 1) {
@@ -56,17 +59,17 @@ function value(url, key, fallback) {
   return decodeTokens(raw);
 }
 
-function validAvatarFile(raw) {
+function validAvatarKey(raw) {
   if (!raw) return "";
-  const file = raw.trim();
-  return /^[a-z0-9][a-z0-9._-]{0,63}\.(?:png|jpe?g|webp)$/i.test(file) ? file : "";
+  const key = raw.trim().replace(/\.webp$/i, "");
+  return /^[a-z0-9][a-z0-9_-]{0,31}$/i.test(key) ? key : "";
 }
 
-async function loadAvatar(file) {
-  if (!file) return "";
+async function loadAvatar(key) {
+  if (!key) return "";
 
   try {
-    const response = await fetch(`${AVATAR_ROOT}${encodeURIComponent(file)}`, {
+    const response = await fetch(`${AVATAR_ROOT}${encodeURIComponent(key)}.webp`, {
       cf: { cacheEverything: true, cacheTtl: 86400 },
     });
     if (!response.ok) return "";
