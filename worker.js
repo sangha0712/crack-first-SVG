@@ -1,5 +1,7 @@
 const WIDTH = 390;
 const MAX_MESSAGES = 5;
+const MAX_AVATAR_BYTES = 1_500_000;
+const AVATAR_ROOT = "https://raw.githubusercontent.com/sangha0712/crack-first-SVG/main/";
 
 export default {
   async fetch(request) {
@@ -12,6 +14,8 @@ export default {
     const name = value(url, "name", "서윤").slice(0, 20);
     const status = value(url, "status", app === "instagram" ? "활동 중" : "").slice(0, 30);
     const date = value(url, "date", "오늘").slice(0, 20);
+    const avatarFile = validAvatarFile(url.searchParams.get("avatar"));
+    const avatarData = await loadAvatar(avatarFile);
     const messages = [];
 
     for (let i = 1; i <= MAX_MESSAGES; i += 1) {
@@ -32,8 +36,8 @@ export default {
     }
 
     const svg = app === "instagram"
-      ? renderInstagram({ name, status, date, messages })
-      : renderKakao({ name, date, messages });
+      ? renderInstagram({ name, status, date, messages, avatarData })
+      : renderKakao({ name, date, messages, avatarData });
 
     return new Response(svg, {
       headers: {
@@ -50,6 +54,41 @@ function value(url, key, fallback) {
   const raw = url.searchParams.get(key);
   if (raw === null || raw === "") return fallback;
   return decodeTokens(raw);
+}
+
+function validAvatarFile(raw) {
+  if (!raw) return "";
+  const file = raw.trim();
+  return /^[a-z0-9][a-z0-9._-]{0,63}\.(?:png|jpe?g|webp)$/i.test(file) ? file : "";
+}
+
+async function loadAvatar(file) {
+  if (!file) return "";
+
+  try {
+    const response = await fetch(`${AVATAR_ROOT}${encodeURIComponent(file)}`, {
+      cf: { cacheEverything: true, cacheTtl: 86400 },
+    });
+    if (!response.ok) return "";
+
+    const type = (response.headers.get("content-type") || "").split(";", 1)[0].toLowerCase();
+    if (!["image/png", "image/jpeg", "image/webp"].includes(type)) return "";
+
+    const buffer = await response.arrayBuffer();
+    if (!buffer.byteLength || buffer.byteLength > MAX_AVATAR_BYTES) return "";
+    return `data:${type};base64,${bytesToBase64(new Uint8Array(buffer))}`;
+  } catch {
+    return "";
+  }
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
 }
 
 function decodeTokens(text) {
@@ -125,6 +164,11 @@ function initial(name) {
   return esc(Array.from(name.trim())[0] || "?");
 }
 
+function avatarImage(data, cx, cy, radius) {
+  const size = radius * 2;
+  return `<image href="${data}" x="${cx - radius}" y="${cy - radius}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatarClip)"/>`;
+}
+
 function baseSvg(height, background, body, defs = "") {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}" role="img" aria-label="메신저 대화 화면">
@@ -132,6 +176,9 @@ function baseSvg(height, background, body, defs = "") {
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="1" stdDeviation="1.4" flood-opacity="0.14"/>
     </filter>
+    <clipPath id="avatarClip" clipPathUnits="objectBoundingBox">
+      <circle cx="0.5" cy="0.5" r="0.5"/>
+    </clipPath>
     ${defs}
   </defs>
   <rect width="${WIDTH}" height="${height}" fill="${background}"/>
@@ -139,7 +186,7 @@ function baseSvg(height, background, body, defs = "") {
 </svg>`;
 }
 
-function renderKakao({ name, date, messages }) {
+function renderKakao({ name, date, messages, avatarData }) {
   let y = 108;
   const parts = [
     `<rect width="390" height="68" fill="#ffffff"/>`,
@@ -162,7 +209,9 @@ function renderKakao({ name, date, messages }) {
     if (!mine) {
       parts.push(
         `<circle cx="32" cy="${y + 18}" r="18" fill="#f3f3f3" filter="url(#shadow)"/>`,
-        `<text x="32" y="${y + 23}" text-anchor="middle" fill="#616161" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
+        avatarData
+          ? avatarImage(avatarData, 32, y + 18, 18)
+          : `<text x="32" y="${y + 23}" text-anchor="middle" fill="#616161" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
         `<text x="58" y="${y - 7}" fill="#4b5660" font-size="11" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(name)}</text>`,
       );
     }
@@ -182,7 +231,7 @@ function renderKakao({ name, date, messages }) {
   return baseSvg(height, "#B2C7D9", parts.join("\n  "));
 }
 
-function renderInstagram({ name, status, date, messages }) {
+function renderInstagram({ name, status, date, messages, avatarData }) {
   let y = 126;
   const gradient = `<linearGradient id="ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FFD600"/><stop offset="0.45" stop-color="#FF3B30"/><stop offset="1" stop-color="#C13584"/></linearGradient>`;
   const parts = [
@@ -190,7 +239,9 @@ function renderInstagram({ name, status, date, messages }) {
     `<path d="M24 39l10-10m-10 10 10 10" fill="none" stroke="#171717" stroke-width="2.2" stroke-linecap="round"/>`,
     `<circle cx="66" cy="39" r="23" fill="none" stroke="url(#ig)" stroke-width="2.5"/>`,
     `<circle cx="66" cy="39" r="19" fill="#f0f0f0"/>`,
-    `<text x="66" y="44" text-anchor="middle" fill="#555" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
+    avatarData
+      ? avatarImage(avatarData, 66, 39, 19)
+      : `<text x="66" y="44" text-anchor="middle" fill="#555" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
     `<text x="99" y="35" fill="#111" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(name)}</text>`,
     `<text x="99" y="53" fill="#8e8e8e" font-size="11" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(status)}</text>`,
     `<path d="M322 31a11 11 0 1 0 0 16a11 11 0 1 0 0-16m17 2l11-6v24l-11-6z" fill="none" stroke="#202020" stroke-width="1.8" stroke-linejoin="round"/>`,
@@ -210,7 +261,9 @@ function renderInstagram({ name, status, date, messages }) {
       parts.push(
         `<circle cx="29" cy="${y + bubbleHeight / 2}" r="17" fill="none" stroke="url(#ig)" stroke-width="2"/>`,
         `<circle cx="29" cy="${y + bubbleHeight / 2}" r="13.5" fill="#f0f0f0"/>`,
-        `<text x="29" y="${y + bubbleHeight / 2 + 5}" text-anchor="middle" fill="#555" font-size="11" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
+        avatarData
+          ? avatarImage(avatarData, 29, y + bubbleHeight / 2, 13.5)
+          : `<text x="29" y="${y + bubbleHeight / 2 + 5}" text-anchor="middle" fill="#555" font-size="11" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
       );
     }
 
