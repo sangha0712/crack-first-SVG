@@ -12,9 +12,8 @@ export default {
     }
 
     const url = new URL(request.url);
-    const app = value(url, "app", "kakao").toLowerCase();
     const name = value(url, "name", "하린").slice(0, 20);
-    const status = value(url, "status", app === "instagram" ? "활동 중" : "").slice(0, 30);
+    const status = value(url, "status", "활동 중").slice(0, 30);
     const date = value(url, "date", "오늘").slice(0, 20);
     const avatarKey = validAvatarKey(url.searchParams.get("a") || url.searchParams.get("avatar"))
       || DEFAULT_AVATAR_BY_NAME[name]
@@ -39,9 +38,7 @@ export default {
       );
     }
 
-    const svg = app === "instagram"
-      ? renderInstagram({ name, status, date, messages, avatarData })
-      : renderKakao({ name, date, messages, avatarData });
+    const svg = renderInstagram({ name, status, date, messages, avatarData });
 
     return new Response(svg, {
       headers: {
@@ -198,96 +195,167 @@ function baseSvg(height, background, body, defs = "") {
 }
 
 function renderKakao({ name, date, messages, avatarData }) {
-  let y = 108;
+  let y = 118;
   const parts = [
-    `<rect width="390" height="68" fill="#ffffff"/>`,
-    `<path d="M25 34l10-10m-10 10 10 10" fill="none" stroke="#202020" stroke-width="2.2" stroke-linecap="round"/>`,
-    `<text x="195" y="31" text-anchor="middle" fill="#151515" font-size="16" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(name)}</text>`,
-    `<text x="195" y="49" text-anchor="middle" fill="#8a8a8a" font-size="11" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">1:1 채팅</text>`,
-    `<circle cx="354" cy="29" r="2" fill="#333"/><circle cx="354" cy="36" r="2" fill="#333"/><circle cx="354" cy="43" r="2" fill="#333"/>`,
-    `<rect x="166" y="79" width="58" height="24" rx="12" fill="#8ea4b6" fill-opacity="0.72"/>`,
-    `<text x="195" y="95" text-anchor="middle" fill="#fff" font-size="11" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(date)}</text>`,
+    `<rect width="390" height="64" fill="#ffffff"/>`,
+    `<line x1="0" y1="63.5" x2="390" y2="63.5" stroke="#ececec" stroke-width="1"/>`,
+    `<path d="M29 23L20 32l9 9" fill="none" stroke="#191919" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>`,
+    `<text x="195" y="38" text-anchor="middle" fill="#151515" font-size="17" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(name)}</text>`,
+    `<circle cx="320" cy="31" r="7.3" fill="none" stroke="#232323" stroke-width="1.8"/>`,
+    `<line x1="325.5" y1="36.5" x2="331" y2="42" stroke="#232323" stroke-width="1.8" stroke-linecap="round"/>`,
+    `<line x1="351" y1="25" x2="365" y2="25" stroke="#232323" stroke-width="2" stroke-linecap="round"/>`,
+    `<line x1="351" y1="32" x2="365" y2="32" stroke="#232323" stroke-width="2" stroke-linecap="round"/>`,
+    `<line x1="351" y1="39" x2="365" y2="39" stroke="#232323" stroke-width="2" stroke-linecap="round"/>`,
+    `<rect x="159" y="77" width="72" height="24" rx="12" fill="#93A9BB" fill-opacity="0.72"/>`,
+    `<text x="195" y="93.5" text-anchor="middle" fill="#ffffff" font-size="11" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(date)}</text>`,
   ];
 
-  for (const message of messages) {
-    const lines = wrap(message.text, 250);
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
+    const previous = messages[index - 1];
+    const next = messages[index + 1];
+    const groupStart = !previous || previous.side !== message.side;
+    const groupEnd = !next || next.side !== message.side;
+    const lines = wrap(message.text, 232);
     const textWidth = Math.max(...lines.map(visualWidth));
-    const bubbleWidth = Math.min(286, Math.max(48, textWidth + 28));
-    const bubbleHeight = lines.length * 22 + 18;
+    const bubbleWidth = Math.min(270, Math.max(50, textWidth + 26));
+    const bubbleHeight = lines.length * 22 + 16;
     const mine = message.side === "me";
     const bubbleX = mine ? WIDTH - 18 - bubbleWidth : 58;
 
-    if (!mine) {
+    if (!mine && groupStart) {
       parts.push(
-        `<circle cx="32" cy="${y + 18}" r="18" fill="#f3f3f3" filter="url(#shadow)"/>`,
+        `<circle cx="31" cy="${y + 18}" r="19" fill="#f3f3f3" filter="url(#shadow)"/>`,
         avatarData
-          ? avatarImage(avatarData, 32, y + 18, 18)
-          : `<text x="32" y="${y + 23}" text-anchor="middle" fill="#616161" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
-        `<text x="58" y="${y - 7}" fill="#4b5660" font-size="11" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(name)}</text>`,
+          ? avatarImage(avatarData, 31, y + 18, 19)
+          : `<text x="31" y="${y + 23}" text-anchor="middle" fill="#616161" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
+        `<text x="58" y="${y - 7}" fill="#4A5965" font-size="11.5" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(name)}</text>`,
       );
     }
 
-    parts.push(`<rect x="${bubbleX}" y="${y}" width="${bubbleWidth}" height="${bubbleHeight}" rx="11" fill="${mine ? "#FEE500" : "#ffffff"}"/>`);
-    parts.push(tspans(lines, bubbleX + 14, y + 24));
+    if (groupStart) {
+      const edge = mine ? bubbleX + bubbleWidth : bubbleX;
+      const tail = mine
+        ? `M${edge - 1} ${y + 8}L${edge + 8} ${y + 12}L${edge - 1} ${y + 19}Z`
+        : `M${edge + 1} ${y + 8}L${edge - 8} ${y + 12}L${edge + 1} ${y + 19}Z`;
+      parts.push(`<path d="${tail}" fill="${mine ? "#FEE500" : "#ffffff"}"/>`);
+    }
+
+    parts.push(`<rect x="${bubbleX}" y="${y}" width="${bubbleWidth}" height="${bubbleHeight}" rx="8" fill="${mine ? "#FEE500" : "#ffffff"}"/>`);
+    parts.push(tspans(lines, bubbleX + 13, y + 23));
 
     if (message.time) {
-      const timeX = mine ? bubbleX - 7 : bubbleX + bubbleWidth + 7;
+      const timeX = mine ? bubbleX - 6 : bubbleX + bubbleWidth + 6;
       const anchor = mine ? "end" : "start";
-      parts.push(`<text x="${timeX}" y="${y + bubbleHeight - 4}" text-anchor="${anchor}" fill="#617485" font-size="10" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(message.time)}</text>`);
+      parts.push(`<text x="${timeX}" y="${y + bubbleHeight - 2}" text-anchor="${anchor}" fill="#5E7180" font-size="9.5" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(message.time)}</text>`);
     }
-    y += bubbleHeight + (mine ? 15 : 34);
+    y += bubbleHeight + (groupEnd ? 23 : 6);
   }
 
-  const height = Math.max(430, y + 30);
+  const height = Math.max(540, y + 92);
+  const inputY = height - 58;
+  parts.push(
+    `<rect x="0" y="${inputY}" width="390" height="58" fill="#ffffff"/>`,
+    `<line x1="0" y1="${inputY}" x2="390" y2="${inputY}" stroke="#e9e9e9"/>`,
+    `<circle cx="25" cy="${inputY + 29}" r="13" fill="#ffffff" stroke="#9b9b9b" stroke-width="1.4"/>`,
+    `<line x1="19" y1="${inputY + 29}" x2="31" y2="${inputY + 29}" stroke="#7f7f7f" stroke-width="1.5" stroke-linecap="round"/>`,
+    `<line x1="25" y1="${inputY + 23}" x2="25" y2="${inputY + 35}" stroke="#7f7f7f" stroke-width="1.5" stroke-linecap="round"/>`,
+    `<rect x="48" y="${inputY + 9}" width="324" height="40" rx="20" fill="#f5f5f5"/>`,
+    `<text x="65" y="${inputY + 34}" fill="#a4a4a4" font-size="13" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">메시지 입력</text>`,
+    `<circle cx="326" cy="${inputY + 29}" r="9" fill="none" stroke="#8e8e8e" stroke-width="1.4"/>`,
+    `<circle cx="323" cy="${inputY + 27}" r="1" fill="#8e8e8e"/><circle cx="329" cy="${inputY + 27}" r="1" fill="#8e8e8e"/>`,
+    `<path d="M322 ${inputY + 32}q4 4 8 0" fill="none" stroke="#8e8e8e" stroke-width="1.2" stroke-linecap="round"/>`,
+    `<text x="352" y="${inputY + 34}" text-anchor="middle" fill="#8e8e8e" font-size="18" font-weight="500" font-family="system-ui,-apple-system,sans-serif">#</text>`,
+  );
+
   return baseSvg(height, "#B2C7D9", parts.join("\n  "));
 }
 
 function renderInstagram({ name, status, date, messages, avatarData }) {
-  let y = 126;
-  const gradient = `<linearGradient id="ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FFD600"/><stop offset="0.45" stop-color="#FF3B30"/><stop offset="1" stop-color="#C13584"/></linearGradient>`;
+  let y = 124;
+  const gradient = `
+    <linearGradient id="ig" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFD600"/>
+      <stop offset="0.42" stop-color="#FF3040"/>
+      <stop offset="1" stop-color="#C13584"/>
+    </linearGradient>
+    <linearGradient id="sent" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#5B51D8"/>
+      <stop offset="0.55" stop-color="#833AB4"/>
+      <stop offset="1" stop-color="#C13584"/>
+    </linearGradient>`;
   const parts = [
-    `<rect width="390" height="78" fill="#ffffff"/>`,
-    `<path d="M24 39l10-10m-10 10 10 10" fill="none" stroke="#171717" stroke-width="2.2" stroke-linecap="round"/>`,
-    `<circle cx="66" cy="39" r="23" fill="none" stroke="url(#ig)" stroke-width="2.5"/>`,
-    `<circle cx="66" cy="39" r="19" fill="#f0f0f0"/>`,
+    `<rect width="390" height="72" fill="#ffffff"/>`,
+    `<path d="M29 27L20 36l9 9" fill="none" stroke="#111111" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>`,
+    `<circle cx="61" cy="36" r="22" fill="none" stroke="url(#ig)" stroke-width="2.2"/>`,
+    `<circle cx="61" cy="36" r="18.5" fill="#f1f1f1"/>`,
     avatarData
-      ? avatarImage(avatarData, 66, 39, 19)
-      : `<text x="66" y="44" text-anchor="middle" fill="#555" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
-    `<text x="99" y="35" fill="#111" font-size="14" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(name)}</text>`,
-    `<text x="99" y="53" fill="#8e8e8e" font-size="11" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(status)}</text>`,
-    `<path d="M322 31a11 11 0 1 0 0 16a11 11 0 1 0 0-16m17 2l11-6v24l-11-6z" fill="none" stroke="#202020" stroke-width="1.8" stroke-linejoin="round"/>`,
-    `<line x1="0" y1="78" x2="390" y2="78" stroke="#efefef"/>`,
-    `<text x="195" y="103" text-anchor="middle" fill="#9a9a9a" font-size="11" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(date)}</text>`,
+      ? avatarImage(avatarData, 61, 36, 18.5)
+      : `<text x="61" y="41" text-anchor="middle" fill="#555" font-size="13" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
+    `<text x="91" y="32" fill="#111111" font-size="14.5" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(name)}</text>`,
+    `<text x="91" y="50" fill="#8e8e8e" font-size="10.5" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(status)}</text>`,
+    `<path d="M305 29c2-3 5-4 8-2l4 4c1 1 1 3 0 4l-3 3c3 5 6 8 11 11l3-3c1-1 3-1 4 0l4 4c2 2 1 6-2 8l-2 1c-4 2-14-3-22-11s-13-18-11-22z" fill="none" stroke="#151515" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" transform="scale(.72) translate(120 12)"/>`,
+    `<rect x="342" y="27" width="22" height="18" rx="5" fill="none" stroke="#151515" stroke-width="1.8"/>`,
+    `<path d="M364 32l8-5v18l-8-5z" fill="none" stroke="#151515" stroke-width="1.8" stroke-linejoin="round"/>`,
+    `<line x1="0" y1="71.5" x2="390" y2="71.5" stroke="#ededed"/>`,
+    `<text x="195" y="101" text-anchor="middle" fill="#9b9b9b" font-size="10.5" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(date)}</text>`,
   ];
 
-  for (const message of messages) {
-    const lines = wrap(message.text, 252);
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
+    const previous = messages[index - 1];
+    const next = messages[index + 1];
+    const groupStart = !previous || previous.side !== message.side;
+    const groupEnd = !next || next.side !== message.side;
+    const isLast = index === messages.length - 1;
+    const lines = wrap(message.text, 246);
     const textWidth = Math.max(...lines.map(visualWidth));
-    const bubbleWidth = Math.min(292, Math.max(52, textWidth + 30));
-    const bubbleHeight = lines.length * 22 + 18;
+    const bubbleWidth = Math.min(286, Math.max(52, textWidth + 30));
+    const bubbleHeight = lines.length * 22 + 16;
     const mine = message.side === "me";
-    const bubbleX = mine ? WIDTH - 18 - bubbleWidth : 54;
+    const bubbleX = mine ? WIDTH - 14 - bubbleWidth : 52;
 
-    if (!mine) {
+    if (!mine && groupEnd) {
       parts.push(
-        `<circle cx="29" cy="${y + bubbleHeight / 2}" r="17" fill="none" stroke="url(#ig)" stroke-width="2"/>`,
-        `<circle cx="29" cy="${y + bubbleHeight / 2}" r="13.5" fill="#f0f0f0"/>`,
+        `<circle cx="27" cy="${y + bubbleHeight - 15}" r="15.5" fill="none" stroke="url(#ig)" stroke-width="1.8"/>`,
+        `<circle cx="27" cy="${y + bubbleHeight - 15}" r="12.5" fill="#f0f0f0"/>`,
         avatarData
-          ? avatarImage(avatarData, 29, y + bubbleHeight / 2, 13.5)
-          : `<text x="29" y="${y + bubbleHeight / 2 + 5}" text-anchor="middle" fill="#555" font-size="11" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
+          ? avatarImage(avatarData, 27, y + bubbleHeight - 15, 12.5)
+          : `<text x="27" y="${y + bubbleHeight - 11}" text-anchor="middle" fill="#555" font-size="10" font-weight="700" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${initial(name)}</text>`,
       );
     }
 
-    parts.push(`<rect x="${bubbleX}" y="${y}" width="${bubbleWidth}" height="${bubbleHeight}" rx="${bubbleHeight / 2}" fill="${mine ? "#3797F0" : "#efefef"}"/>`);
-    parts.push(tspans(lines, bubbleX + 15, y + 24, mine ? "#ffffff" : "#161616"));
+    const radius = Math.min(20, bubbleHeight / 2);
+    parts.push(`<rect x="${bubbleX}" y="${y}" width="${bubbleWidth}" height="${bubbleHeight}" rx="${radius}" fill="${mine ? "url(#sent)" : "#EFEFEF"}"/>`);
+    parts.push(tspans(lines, bubbleX + 15, y + 23, mine ? "#ffffff" : "#171717"));
 
-    if (message.time) {
-      parts.push(`<text x="${mine ? bubbleX + bubbleWidth : bubbleX}" y="${y + bubbleHeight + 14}" text-anchor="${mine ? "end" : "start"}" fill="#a0a0a0" font-size="10" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(message.time)}</text>`);
-      y += 14;
+    if (groupEnd && (message.time || (mine && isLast))) {
+      const meta = mine && isLast
+        ? `${message.time ? `${message.time} · ` : ""}읽음`
+        : message.time;
+      parts.push(`<text x="${mine ? bubbleX + bubbleWidth : bubbleX}" y="${y + bubbleHeight + 13}" text-anchor="${mine ? "end" : "start"}" fill="#9a9a9a" font-size="9.5" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">${esc(meta)}</text>`);
+      y += 13;
     }
-    y += bubbleHeight + 13;
+    y += bubbleHeight + (groupEnd ? 15 : 5);
   }
 
-  const height = Math.max(430, y + 30);
+  const height = Math.max(560, y + 92);
+  const inputY = height - 62;
+  parts.push(
+    `<rect x="0" y="${inputY}" width="390" height="62" fill="#ffffff"/>`,
+    `<line x1="0" y1="${inputY}" x2="390" y2="${inputY}" stroke="#eeeeee"/>`,
+    `<rect x="12" y="${inputY + 10}" width="366" height="42" rx="21" fill="#ffffff" stroke="#d9d9d9" stroke-width="1"/>`,
+    `<circle cx="34" cy="${inputY + 31}" r="15" fill="#3797F0"/>`,
+    `<rect x="27" y="${inputY + 25}" width="14" height="11" rx="3" fill="none" stroke="#ffffff" stroke-width="1.5"/>`,
+    `<circle cx="34" cy="${inputY + 30.5}" r="3.2" fill="none" stroke="#ffffff" stroke-width="1.3"/>`,
+    `<path d="M29 ${inputY + 25}l2-3h6l2 3" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>`,
+    `<text x="57" y="${inputY + 35}" fill="#9a9a9a" font-size="12.5" font-family="system-ui,-apple-system,'Noto Sans KR',sans-serif">메시지 보내기...</text>`,
+    `<path d="M291 ${inputY + 24}v8a5 5 0 0 0 10 0v-8m-5 13v4m-5 0h10" fill="none" stroke="#222222" stroke-width="1.4" stroke-linecap="round"/>`,
+    `<rect x="316" y="${inputY + 23}" width="17" height="16" rx="2.5" fill="none" stroke="#222222" stroke-width="1.4"/>`,
+    `<circle cx="328" cy="${inputY + 28}" r="2" fill="#222222"/>`,
+    `<path d="M318 ${inputY + 36}l5-5l4 4l3-3l3 4" fill="none" stroke="#222222" stroke-width="1.3" stroke-linejoin="round"/>`,
+    `<path d="M358 ${inputY + 39}C355 ${inputY + 35} 349 ${inputY + 32} 351 ${inputY + 27}C353 ${inputY + 23} 357 ${inputY + 24} 358 ${inputY + 28}C359 ${inputY + 24} 363 ${inputY + 23} 365 ${inputY + 27}C367 ${inputY + 32} 361 ${inputY + 36} 358 ${inputY + 39}Z" fill="none" stroke="#222222" stroke-width="1.3" stroke-linejoin="round"/>`,
+  );
+
   return baseSvg(height, "#ffffff", parts.join("\n  "), gradient);
 }
