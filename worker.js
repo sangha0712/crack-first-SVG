@@ -83,6 +83,7 @@ async function renderPng(svg) {
   await rendererReady;
 
   const renderer = new Resvg(svg, {
+    fitTo: { mode: "zoom", value: 3 },
     font: {
       fontBuffers: [new Uint8Array(notoSansRegular), new Uint8Array(notoSansBold)],
       defaultFontFamily: "Noto Sans KR",
