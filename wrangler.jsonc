@@ -2,5 +2,22 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "crack-first-svg",
   "main": "worker.js",
-  "compatibility_date": "2026-09-24"
+  "compatibility_date": "2026-09-24",
+  "rules": [
+    {
+      "type": "CompiledWasm",
+      "globs": [
+        "node_modules/@resvg/resvg-wasm/*.wasm"
+      ],
+      "fallthrough": true
+    },
+    {
+      "type": "Data",
+      "globs": [
+        "**/NotoSansKR-*.ttf",
+        "**/hr.png"
+      ],
+      "fallthrough": true
+    }
+  ]
 }

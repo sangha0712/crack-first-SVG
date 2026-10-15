@@ -1,9 +1,16 @@
+import { initWasm, Resvg } from "@resvg/resvg-wasm";
+import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
+import notoSansRegular from "./NotoSansKR-Regular.ttf";
+import notoSansBold from "./NotoSansKR-Bold.ttf";
+import harinAvatar from "./hr.png";
+
 const WIDTH = 390;
 const MAX_MESSAGES = 5;
 const MAX_AVATAR_BYTES = 1_500_000;
 const AVATAR_ROOT = "https://raw.githubusercontent.com/sangha0712/crack-first-SVG/main/";
 const AVATAR_REV = "1";
 const DEFAULT_AVATAR_BY_NAME = { "하린": "hr" };
+let rendererReady;
 
 export default {
   async fetch(request) {
@@ -18,7 +25,8 @@ export default {
     const avatarKey = validAvatarKey(url.searchParams.get("a") || url.searchParams.get("avatar"))
       || DEFAULT_AVATAR_BY_NAME[name]
       || "";
-    const avatarData = await loadAvatar(avatarKey);
+    const asPng = url.pathname.toLowerCase().endsWith(".png");
+    const avatarData = await loadAvatar(avatarKey, asPng);
     const messages = [];
 
     for (let i = 1; i <= MAX_MESSAGES; i += 1) {
@@ -40,16 +48,56 @@ export default {
 
     const svg = renderInstagram({ name, status, date, messages, avatarData });
 
-    return new Response(svg, {
-      headers: {
-        "Content-Type": "image/svg+xml; charset=utf-8",
-        "Cache-Control": "no-store, max-age=0",
-        "Access-Control-Allow-Origin": "*",
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
+    if (!asPng) return imageResponse(svg, "image/svg+xml; charset=utf-8");
+    try {
+      return imageResponse(await renderPng(svg), "image/png");
+    } catch (error) {
+      console.error("PNG render failed", error);
+      return new Response("PNG render failed", {
+        status: 500,
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+      });
+    }
   },
 };
+
+function imageResponse(body, contentType) {
+  return new Response(body, {
+    headers: {
+      "Content-Type": contentType,
+      "Content-Disposition": "inline",
+      "Cache-Control": "no-store, max-age=0",
+      "Access-Control-Allow-Origin": "*",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+async function renderPng(svg) {
+  if (!rendererReady) {
+    rendererReady = initWasm(resvgWasm).catch((error) => {
+      rendererReady = undefined;
+      throw error;
+    });
+  }
+  await rendererReady;
+
+  const renderer = new Resvg(svg, {
+    font: {
+      fontBuffers: [new Uint8Array(notoSansRegular), new Uint8Array(notoSansBold)],
+      defaultFontFamily: "Noto Sans KR",
+      sansSerifFamily: "Noto Sans KR",
+      serifFamily: "Noto Sans KR",
+    },
+  });
+  const rendered = renderer.render();
+  try {
+    return rendered.asPng();
+  } finally {
+    rendered.free();
+    renderer.free();
+  }
+}
 
 function value(url, key, fallback) {
   const raw = url.searchParams.get(key);
@@ -63,11 +111,14 @@ function validAvatarKey(raw) {
   return /^[a-z0-9][a-z0-9_-]{0,31}$/i.test(key) ? key : "";
 }
 
-async function loadAvatar(key) {
+async function loadAvatar(key, asPng = false) {
   if (!key) return "";
+  if (asPng && key === "hr") {
+    return `data:image/png;base64,${bytesToBase64(new Uint8Array(harinAvatar))}`;
+  }
 
   try {
-    const response = await fetch(`${AVATAR_ROOT}${encodeURIComponent(key)}.webp?v=${AVATAR_REV}`, {
+    const response = await fetch(`${AVATAR_ROOT}${encodeURIComponent(key)}.${asPng ? "png" : "webp"}?v=${AVATAR_REV}`, {
       cf: {
         cacheEverything: true,
         cacheTtlByStatus: {

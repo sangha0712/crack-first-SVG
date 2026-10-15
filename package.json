@@ -6,6 +6,13 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
-    "preview": "wrangler preview"
+    "preview": "wrangler preview",
+    "check": "wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@resvg/resvg-wasm": "2.6.2"
+  },
+  "devDependencies": {
+    "wrangler": "4.138.0"
   }
 }
