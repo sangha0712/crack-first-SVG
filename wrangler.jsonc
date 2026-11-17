@@ -3,6 +3,7 @@
   "name": "crack-first-svg",
   "main": "worker.js",
   "compatibility_date": "2026-09-24",
+  "previews": {},
   "rules": [
     {
       "type": "CompiledWasm",
@@ -15,7 +16,8 @@
       "type": "Data",
       "globs": [
         "**/NotoSansKR-*.ttf",
-        "**/hr.png"
+        "**/hr.png",
+        "**/hr-render.png"
       ],
       "fallthrough": true
     }

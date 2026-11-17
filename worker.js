@@ -2,7 +2,10 @@ import { initWasm, Resvg } from "@resvg/resvg-wasm";
 import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 import notoSansRegular from "./NotoSansKR-Regular.ttf";
 import notoSansBold from "./NotoSansKR-Bold.ttf";
-import harinAvatar from "./hr.png";
+import notoSansRegularUi from "./NotoSansKR-Regular-ui.ttf";
+import notoSansBoldUi from "./NotoSansKR-Bold-ui.ttf";
+import harinAvatar from "./hr-render.png";
+import { cachedPng } from "./render-cache.js";
 
 const WIDTH = 390;
 const MAX_MESSAGES = 5;
@@ -11,9 +14,12 @@ const AVATAR_ROOT = "https://raw.githubusercontent.com/sangha0712/crack-first-SV
 const AVATAR_REV = "1";
 const DEFAULT_AVATAR_BY_NAME = { "하린": "hr" };
 let rendererReady;
+let defaultAvatarData;
+let uiFontBuffers;
+let fullFontBuffers;
 
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     if (request.method !== "GET") {
       return new Response("GET only", { status: 405 });
     }
@@ -26,7 +32,6 @@ export default {
       || DEFAULT_AVATAR_BY_NAME[name]
       || "";
     const asPng = url.pathname.toLowerCase().endsWith(".png");
-    const avatarData = await loadAvatar(avatarKey, asPng);
     const messages = [];
 
     for (let i = 1; i <= MAX_MESSAGES; i += 1) {
@@ -46,11 +51,21 @@ export default {
       );
     }
 
-    const svg = renderInstagram({ name, status, date, messages, avatarData });
-
-    if (!asPng) return imageResponse(svg, "image/svg+xml; charset=utf-8");
+    const parameters = { name, status, date, avatarKey, avatarRev: AVATAR_REV, messages };
+    if (!asPng) {
+      const avatarData = await loadAvatar(avatarKey, false);
+      return imageResponse(renderInstagram({ ...parameters, avatarData }), "image/svg+xml; charset=utf-8");
+    }
     try {
-      return imageResponse(await renderPng(svg), "image/png");
+      return await cachedPng(request, parameters, async () => {
+        const avatarData = await loadAvatar(avatarKey, true);
+        const svg = renderInstagram({ ...parameters, avatarData });
+        return {
+          bytes: await renderPng(svg),
+          // A temporary avatar download failure must not become a cached image.
+          cacheable: !avatarKey || Boolean(avatarData),
+        };
+      }, ctx);
     } catch (error) {
       console.error("PNG render failed", error);
       return new Response("PNG render failed", {
@@ -85,19 +100,29 @@ async function renderPng(svg) {
   const renderer = new Resvg(svg, {
     fitTo: { mode: "zoom", value: 3 },
     font: {
-      fontBuffers: [new Uint8Array(notoSansRegular), new Uint8Array(notoSansBold)],
+      fontBuffers: fontBuffersFor(svg),
       defaultFontFamily: "Noto Sans KR",
       sansSerifFamily: "Noto Sans KR",
       serifFamily: "Noto Sans KR",
     },
   });
-  const rendered = renderer.render();
+  let rendered;
   try {
+    rendered = renderer.render();
     return rendered.asPng();
   } finally {
-    rendered.free();
+    rendered?.free();
     renderer.free();
   }
+}
+
+function fontBuffersFor(svg) {
+  // Match the ranges excluded by scripts/optimize-assets.py. Keep the original
+  // fonts for Han text; every other originally supported character stays in UI fonts.
+  if (/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u{20000}-\u{323af}]/u.test(svg)) {
+    return fullFontBuffers ||= [new Uint8Array(notoSansRegular), new Uint8Array(notoSansBold)];
+  }
+  return uiFontBuffers ||= [new Uint8Array(notoSansRegularUi), new Uint8Array(notoSansBoldUi)];
 }
 
 function value(url, key, fallback) {
@@ -115,7 +140,7 @@ function validAvatarKey(raw) {
 async function loadAvatar(key, asPng = false) {
   if (!key) return "";
   if (asPng && key === "hr") {
-    return `data:image/png;base64,${bytesToBase64(new Uint8Array(harinAvatar))}`;
+    return defaultAvatarData ||= `data:image/png;base64,${bytesToBase64(new Uint8Array(harinAvatar))}`;
   }
 
   try {
