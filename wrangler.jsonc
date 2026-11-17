@@ -15,7 +15,8 @@
       "type": "Data",
       "globs": [
         "**/NotoSansKR-*.ttf",
-        "**/hr.png"
+        "**/hr.png",
+        "**/hr-render.png"
       ],
       "fallthrough": true
     }
